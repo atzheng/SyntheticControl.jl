@@ -7,7 +7,6 @@ function check_tol(τ1, τ2; tol=1e-3)
     if τ1 != nothing && is_tol(τ1, τ2, tol)
         reduced(τ2)
     else
-        @show τ2[1]
         τ2
     end
 end
