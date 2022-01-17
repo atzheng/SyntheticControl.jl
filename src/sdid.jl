@@ -46,32 +46,4 @@ function SDID(O::Array{S, 2}, Z::Array{S, 2};
     @objective(m, Min, sum((O .- α .- β' .- τ .* Z) .^ 2 .* (ω * λ')))
     optimize!(m)
     value(τ)
-    # step = partial(alternating_minimization_step, O, Z, ω * λ')
-    # init = (0., zeros(N, 1), zeros(1, T))
-    # τ, α, β = step_to_tol(step, init; kwargs...)
-    # τ
-end
-
-# function convex_linear_regression(X::Array{S, 2}, y::Array{S, 1};
-#                                   ρ=0., solver=DEFAULT_SOLVER)  where S <: Real
-#     """
-#     min_{β0, β} (1/n)|| y - X β - β0 ||^2_2 + ρ ||β||^2_2
-#     s.t. β ≥ 0, sum(β) == 1
-#     """
-#     d = size(X, 2)
-#     m = Model(solver)
-#     @variable(m, β0)
-#     @variable(m, β[1:d] >= 0)
-#     @objective(m, Min, mean((β0 .+ X * β .- y) .^ 2) + ρ * β'β)
-#     @constraint(m, sum(β) == 1)
-#     optimize!(m)
-#     value(β0), max.(value.(β), 0.)
-# end
-
-function alternating_minimization_step(O, Z, W, params)
-    τ, α, β = params
-    αnew = wmean(O .- β .- τ * Z, W, 2)
-    βnew = wmean(O .- α .- τ * Z, W, 1)
-    τnew = wmean(Z .* (O - αnew * βnew), Z .* W)
-    (τnew, αnew, βnew)
 end
