@@ -1,7 +1,8 @@
 using StatsBase
 
 function SDID(O::Array{S, 2}, Z::Array{S, 2};
-              Tpre=nothing, solver=DEFAULT_SOLVER, kwargs...) where S <: Real
+              Tpre=nothing, solver=Ipopt.Optimizer,
+              verbose=false, kwargs...) where S <: Real
     """
     Implements Synthetic Differences-In-Differences (SDID) from
     Arkhangelsky et. al., 2021. Notation generally follows theirs.
@@ -24,14 +25,16 @@ function SDID(O::Array{S, 2}, Z::Array{S, 2};
     ω0, ωco = constrained_elastic_net(
         collect(Opre'),
         vec(mean(O[.!is_control, 1:Tpre]; dims=1));
-        λ2=ζ2, solver=solver, non_negative=true, adding_up=true)
+        λ=ζ2, α=0., solver=solver, non_negative=true, adding_up=true,
+        verbose=verbose)
 
     # 3. Solve for time weights
     time_target = mean(O[is_control, (Tpre + 1):end];
                        dims=2) |> vec
     λ0, λpre = constrained_elastic_net(
         Opre, time_target;
-        solver=solver, non_negative=true, adding_up=true)
+        solver=solver, non_negative=true, adding_up=true,
+        verbose=verbose)
 
     # 4. Solve the weighted DID regression
     ω = zeros(N)
@@ -44,6 +47,7 @@ function SDID(O::Array{S, 2}, Z::Array{S, 2};
     @variable(m, β[1:T])
     @variable(m, τ)
     @objective(m, Min, sum((O .- α .- β' .- τ .* Z) .^ 2 .* (ω * λ')))
+    if !verbose set_silent(m) end
     optimize!(m)
     value(τ)
 end
