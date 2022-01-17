@@ -35,6 +35,6 @@ function infer_controls(Z)
     matrix Z.
     """
     is_control = vec(sum(Z; dims=2)) .== 0
-    Tpre = minimum([x[2] for x in findmax(Z[1:3, :]; dims=2)[2]])
+    Tpre = minimum([x[2] for x in findmax(Z[.!is_control, :]; dims=2)[2]])
     is_control, Tpre
 end
