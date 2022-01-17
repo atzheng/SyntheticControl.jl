@@ -21,17 +21,24 @@ function constrained_elastic_net(X::Array{T, 2}, y::Array{T, 1};
             X, y; λ=λ, solver=solver, intercept=intercept,
             adding_up=adding_up, non_negative=non_negative)
     else
-        d = size(X, 2)
+        n, d = size(X)
         m = Model(solver)
 
         @variable(m, β0)
         @variable(m, βpos[1:d] ≥ 0)
         @variable(m, βneg[1:d] ≥ 0)
+
+        # βabs and ε are not necessary but simplify statement
+        # of the objective. This improves performance a lot.
+        @variable(m, βabs[1:d] ≥ 0)
+        @variable(m, ε[1:n])
         if verbose println("Starting to build objective...") end
         @objective(m, Min,
-                   mean((β0 .+ X * (βpos .- βneg) .- y) .^ 2)
-                   + λ * α * sum(βpos .+ βneg)
-                   + λ * (1 - α) * sum((βpos .+ βneg) .^ 2))
+                   mean(ε .^ 2)
+                   + λ * α * sum(βabs)
+                   + λ * (1 - α) * sum(βabs .^ 2))
+        @constraint(m, ε .== β0 .+ X * (βpos .- βneg) .- y)
+        @constraint(m, βabs .== βpos .+ βneg)
         if !intercept @constraint(m, β0 == 0.) end
         if non_negative @constraint(m, βneg .== 0.) end
         if adding_up @constraint(m, sum(βpos .- βneg) == 1.) end
@@ -49,13 +56,15 @@ function constrained_ridge_regression(X, y;
                                       adding_up=false,
                                       non_negative=false,
                                       verbose=false)
-    d = size(X, 2)
+    n, d = size(X)
     m = Model(solver)
     @variable(m, β0)
     @variable(m, β[1:d])
-    @time @objective(m, Min,
-                     mean((β0 .+ X * β .- y) .^ 2)
+    @variable(m, ε[1:n])
+    @objective(m, Min,
+                     mean(ε .^ 2)
                      + λ * sum(β .^ 2))
+    @constraint(m, ε .== β0 .+ X * β .- y)
     if !intercept @constraint(m, β0 == 0.) end
     if non_negative @constraint(m, β .>= 0.) end
     if adding_up @constraint(m, sum(β) == 1.) end
