@@ -5,41 +5,64 @@ using Ipopt
 
 function constrained_elastic_net(X::Array{T, 2}, y::Array{T, 1};
                                  λ=0., α=0.,
-                                 solver=nothing,
+                                 solver=Ipopt.Optimizer,
                                  intercept=true,
                                  adding_up=false,
                                  non_negative=false,
                                  verbose=false,
                                  kwargs...) where T <: Real
 
-    if solver === nothing
-        if !adding_up && !non_negative
-            # Use faster solver
-            return unconstrained_elastic_net(
-                X, y; λ=λ, α=α, intercept=intercept, kwargs...)
-        else
-            solver = Ipopt.Optimizer
-        end
-    end
+    # Special cases with faster solve
+    if !adding_up && !non_negative
+        unconstrained_elastic_net(
+            X, y; λ=λ, α=α, intercept=intercept, kwargs...)
+    elseif α == 0.
+        constrained_ridge_regression(
+            X, y; λ=λ, solver=solver, intercept=intercept,
+            adding_up=adding_up, non_negative=non_negative)
+    else
+        d = size(X, 2)
+        m = Model(solver)
 
+        @variable(m, β0)
+        @variable(m, βpos[1:d] ≥ 0)
+        @variable(m, βneg[1:d] ≥ 0)
+        if verbose println("Starting to build objective...") end
+        @objective(m, Min,
+                   mean((β0 .+ X * (βpos .- βneg) .- y) .^ 2)
+                   + λ * α * sum(βpos .+ βneg)
+                   + λ * (1 - α) * sum((βpos .+ βneg) .^ 2))
+        if !intercept @constraint(m, β0 == 0.) end
+        if non_negative @constraint(m, βneg .== 0.) end
+        if adding_up @constraint(m, sum(βpos .- βneg) == 1.) end
+        if !verbose set_silent(m) end
+
+        optimize!(m)
+        value(β0), max.(value.(βpos), 0.) - max.(value.(βneg), 0.)
+    end
+end
+
+function constrained_ridge_regression(X, y;
+                                      λ=0.,
+                                      solver=Ipopt.Optimizer,
+                                      intercept=true,
+                                      adding_up=false,
+                                      non_negative=false,
+                                      verbose=false)
     d = size(X, 2)
     m = Model(solver)
-
     @variable(m, β0)
-    @variable(m, βpos[1:d] ≥ 0)
-    @variable(m, βneg[1:d] ≥ 0)
-    @objective(m, Min,
-               mean((β0 .+ X * (βpos .- βneg) .- y) .^ 2)
-               + λ * α * sum(βpos .+ βneg)
-               + λ * (1 - α) * sum((βpos .+ βneg) .^ 2))
-
+    @variable(m, β[1:d])
+    @time @objective(m, Min,
+                     mean((β0 .+ X * β .- y) .^ 2)
+                     + λ * sum(β .^ 2))
     if !intercept @constraint(m, β0 == 0.) end
-    if non_negative @constraint(m, βneg .== 0.) end
-    if adding_up @constraint(m, sum(βpos .- βneg) == 1.) end
+    if non_negative @constraint(m, β .>= 0.) end
+    if adding_up @constraint(m, sum(β) == 1.) end
     if !verbose set_silent(m) end
-
     optimize!(m)
-    value(β0), max.(value.(βpos), 0.) - max.(value.(βneg), 0.)
+    βhat = non_negative ? max.(value.(β), 0.) : value.(β)
+    value(β0), βhat
 end
 
 function unconstrained_elastic_net(X::Array{T, 2}, y::Array{T, 1};
