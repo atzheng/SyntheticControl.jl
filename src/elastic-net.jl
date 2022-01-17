@@ -74,7 +74,6 @@ function constrained_ridge_regression(X, y;
     value(β0), βhat
 end
 
-using Infiltrator
 function unconstrained_elastic_net(X::Array{T, 2}, y::Array{T, 1};
                                    λ=0., α=0., intercept=true,
                                    kwargs...) where T <: Real
