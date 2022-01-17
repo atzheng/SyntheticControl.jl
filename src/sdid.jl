@@ -1,5 +1,6 @@
 using StatsBase
 
+
 function SDID(O::Array{S, 2}, Z::Array{S, 2};
               Tpre=nothing, solver=Ipopt.Optimizer,
               verbose=false,
@@ -49,10 +50,18 @@ function SDID(O::Array{S, 2}, Z::Array{S, 2};
     ω[.!is_control] .= 1 / Ntr
     λ = vcat(λpre, ones(Tpost) ./ Tpost)
 
-    step = partial(alternating_minimization_step, O, Z, ω * λ')
-    init = (0., zeros(N, 1), zeros(1, T))
-    τ, α, β = step_to_tol(step, init; kwargs...)
-    τ
+    m = Model(solver)
+    @variable(m, α[1:N])
+    @variable(m, β[1:T])
+    @variable(m, τ)
+    @objective(m, Min, sum((O .- α .- β' .- τ .* Z) .^ 2 .* (ω * λ')))
+    if !verbose set_silent(m) end
+    optimize!(m)
+    value(τ)
+    # step = partial(alternating_minimization_step, O, Z, ω * λ')
+    # init = (0., zeros(N, 1), zeros(1, T))
+    # τ, α, β = step_to_tol(step, init; kwargs...)
+    # τ
 end
 
 function alternating_minimization_step(O, Z, W, params)

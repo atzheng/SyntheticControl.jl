@@ -13,10 +13,10 @@ function constrained_elastic_net(X::Array{T, 2}, y::Array{T, 1};
                                  kwargs...) where T <: Real
 
     # Special cases with faster solve
-    if !adding_up && !non_negative
-        unconstrained_elastic_net(
-            X, y; λ=λ, α=α, intercept=intercept, kwargs...)
-    elseif α == 0.
+    # if !adding_up && !non_negative
+    #     unconstrained_elastic_net(
+    #         X, y; λ=λ, α=α, intercept=intercept, kwargs...)
+    if α == 0.
         constrained_ridge_regression(
             X, y; λ=λ, solver=solver, intercept=intercept,
             adding_up=adding_up, non_negative=non_negative)
@@ -74,6 +74,7 @@ function constrained_ridge_regression(X, y;
     value(β0), βhat
 end
 
+using Infiltrator
 function unconstrained_elastic_net(X::Array{T, 2}, y::Array{T, 1};
                                    λ=0., α=0., intercept=true,
                                    kwargs...) where T <: Real
