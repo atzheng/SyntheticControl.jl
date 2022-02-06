@@ -1,7 +1,7 @@
 using StatsBase
 
 
-function  SDID(O::Array{S, 2}, Z::Array{S, 2};
+function SDID(O::Array{S, 2}, Z::Array{S, 2};
               Tpre=nothing, solver=Ipopt.Optimizer,
               verbose=false,
               non_negative=true,
