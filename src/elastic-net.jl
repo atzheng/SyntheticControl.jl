@@ -61,9 +61,7 @@ function constrained_ridge_regression(X, y;
     @variable(m, β0)
     @variable(m, β[1:d])
     @variable(m, ε[1:n])
-    @objective(m, Min,
-                     mean(ε .^ 2)
-                     + λ * sum(β .^ 2))
+    @objective(m, Min, mean(ε .^ 2) + λ * sum(β .^ 2))
     @constraint(m, ε .== β0 .+ X * β .- y)
     if !intercept @constraint(m, β0 == 0.) end
     if non_negative @constraint(m, β .>= 0.) end
@@ -83,8 +81,18 @@ function unconstrained_elastic_net(X::Array{T, 2}, y::Array{T, 1};
     βhat[1], βhat[2:end]
 end
 
-function elastic_net_sc(O::Array{S, 2}, Z::Array{S, 2};
-                        Tpre=nothing, kwargs...) where S <: Real
+function elastic_net_sc(
+    O::Array{S, 2}, Z::Array{S, 2};
+    Tpre=nothing, kwargs...
+) where S <: Real
+    if sum(Z) == 0
+        @warn "No treatment observations! returning 0"
+        return 0.
+    elseif sum(Z) == size(Z, 1) * size(Z, 2)
+        @warn "No control observations! returning 0"
+        return 0.
+    end
+
     N, T = size(O)
     is_control, Tpre_inferred = infer_controls(Z)
     Tpre = Tpre !== nothing ? Tpre : Tpre_inferred
