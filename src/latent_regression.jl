@@ -1,4 +1,5 @@
 using Printf
+using RandomizedLinAlg
 
 
 function LatentRegression(
